@@ -224,7 +224,8 @@ public class UTestDSL {
 		// If you comment out the next line then the program will never terminate.
 		// It will print the first 'limit' elements of the infinite sequence
 		// 7 8 7 7 8 8 7 7 7 7 8 8 8 8 ...
-		//q.start(sink);
+		
+		// q.start(sink);
 	}
 
 	@Test

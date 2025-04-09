@@ -53,7 +53,7 @@ public class Scan<A, B> implements Query<A, B> {
 	@Override
 	public void next(A item, Sink<B> sink) {
 		acc = op.apply(acc, item);
-		sink.next(acc); // 每步都输出当前累积值
+		sink.next(acc); 
 	}
 
 	@Override

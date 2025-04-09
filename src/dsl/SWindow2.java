@@ -47,7 +47,7 @@ public class SWindow2<A,B> implements Query<A,B> {
 	@Override
 	public void start(Sink<B> sink) {
 		hasPrev = false;
-		prev = null; // ← 修复关键点
+		prev = null; 
 	}
 	
 	@Override
