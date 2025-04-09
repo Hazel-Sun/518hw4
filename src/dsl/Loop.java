@@ -1,93 +1,69 @@
-// package dsl;
-
-// import utils.Or;
-
-// // Feedback composition.
-
-// public class Loop<A,B> implements Query<A,B> {
-
-// 	// TODO
-
-// 	public Loop(Query<Or<A,B>,B> q) {
-// 		// TODO
-// 	}
-
-// 	@Override
-// 	public void start(Sink<B> sink) {
-// 		// TODO
-// 	}
-
-// 	@Override
-// 	public void next(A item, Sink<B> sink) {
-// 		// TODO
-// 	}
-
-// 	@Override
-// 	public void end(Sink<B> sink) {
-// 		// TODO
-// 	}
-
-// }
-
 package dsl;
 
 import utils.Or;
-import java.util.ArrayDeque;
+import java.util.LinkedList;
 import java.util.Queue;
 
-public class Loop<A, B> implements Query<A, B> {
+public class Loop<A,B> implements Query<A,B> {
+    
+    private final Query<Or<A,B>,B> innerQuery;
+    private LoopSink loopSink;
+    
+    public Loop(Query<Or<A,B>,B> q) {
+        this.innerQuery = q;
+    }
 
-	private final Query<Or<A, B>, B> q;
-	private Sink<B> outerSink;
-	private final Queue<B> feedbackQueue = new ArrayDeque<>();
-	private boolean isProcessing = false;
+    @Override
+    public void start(Sink<B> sink) {
+        loopSink = new LoopSink(sink);
+        innerQuery.start(loopSink);
+        
+        processPendingFeedback();
+    }
 
-	public Loop(Query<Or<A, B>, B> q) {
-		this.q = q;
-	}
+    @Override
+    public void next(A item, Sink<B> sink) {
+        innerQuery.next(Or.inl(item), loopSink);
+        
+        processPendingFeedback();
+    }
 
-	private final Sink<B> feedbackSink = new Sink<B>() {
-		@Override
-		public void next(B item) {
-			outerSink.next(item);
-			feedbackQueue.add(item);
-			processFeedback();
-		}
-
-		@Override
-		public void end() {
-			// Do not end the outer sink here
-		}
-	};
-
-	@Override
-	public void start(Sink<B> sink) {
-		this.outerSink = sink;
-		System.out.println("Loop: outerSink set");
-		q.start(feedbackSink);
-		System.out.println("Loop: feedbackQuery started");
-	}
-
-	@Override
-	public void next(A item, Sink<B> ignored) {
-		q.next(Or.inl(item), feedbackSink);
-	}
-
-	private void processFeedback() {
-		if (isProcessing) return;
-		isProcessing = true;
-		try {
-			while (!feedbackQueue.isEmpty()) {
-				B item = feedbackQueue.poll();
-				q.next(Or.inr(item), feedbackSink);
-			}
-		} finally {
-			isProcessing = false;
-		}
-	}
-
-	@Override
-	public void end(Sink<B> sink) {
-		q.end(feedbackSink);
-	}
+    @Override
+    public void end(Sink<B> sink) {
+        innerQuery.end(loopSink);
+    }
+    
+    private void processPendingFeedback() {
+        while (!loopSink.itemQueue.isEmpty() && !loopSink.terminated) {
+            B item = loopSink.itemQueue.poll();
+            innerQuery.next(Or.inr(item), loopSink);
+        }
+    }
+    
+    
+    private class LoopSink implements Sink<B> {
+        private final Sink<B> outSink;
+        private volatile boolean terminated = false;
+        private Queue<B> itemQueue = new LinkedList<>();
+        
+        public LoopSink(Sink<B> outSink) {
+            this.outSink = outSink;
+        }
+        
+        @Override
+        public void next(B item) {
+            outSink.next(item);
+            
+            if (!terminated) {
+                itemQueue.add(item);
+            }
+        }
+        
+        @Override
+        public void end() {
+            terminated = true;
+            itemQueue.clear();
+            outSink.end();
+        }
+    }
 }

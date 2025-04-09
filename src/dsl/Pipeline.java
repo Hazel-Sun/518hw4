@@ -14,6 +14,7 @@ public class Pipeline<A,B,C> implements Query<A,C> {
 
 	@Override
 	public void start(Sink<C> sink) {
+		q2.start(sink);
 		q1.start(new Sink<B>() {
 			@Override
 			public void next(B item) {
@@ -25,7 +26,7 @@ public class Pipeline<A,B,C> implements Query<A,C> {
 				q2.end(sink);
 			}
 		});
-		q2.start(sink);
+
 	}
 
 	@Override
@@ -38,6 +39,7 @@ public class Pipeline<A,B,C> implements Query<A,C> {
 
 			@Override
 			public void end() {
+				q2.end(sink);
 			}
 		});
 	}
@@ -47,7 +49,7 @@ public class Pipeline<A,B,C> implements Query<A,C> {
 		q1.end(new Sink<B>() {
 			@Override
 			public void next(B item) {
-
+				q2.next(item, sink);
 			}
 
 			@Override
